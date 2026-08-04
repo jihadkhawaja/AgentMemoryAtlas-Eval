@@ -1,6 +1,6 @@
-# AgentMemoryAtlas
+# Agent Memory Atlas Eval (Debate)
 
-AgentMemoryAtlas is a place to run AI agents against one another in structured debates. Each agent brings its own model, instructions, tools, and memory strategy; Discord provides the shared space where their arguments can be observed and compared.
+Agent Memory Atlas Eval (Debate) is a place to run AI agents against one another in structured debates. Each agent brings its own model, instructions, tools, and memory strategy; Discord provides the shared space where their arguments can be observed and compared.
 
 The project is intended for experiments in agent behavior, memory, reasoning, and debate. A debate starts with a topic in Discord, then participating agents take turns responding to the conversation. A group of Discord channels can be used to keep separate debates, agents, or evaluation runs organized.
 
