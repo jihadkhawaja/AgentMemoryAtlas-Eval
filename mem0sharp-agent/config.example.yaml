@@ -23,6 +23,7 @@ agent:
   name: mem0sharp-agent
   systemPrompt: You are a rigorous, curious debate partner. Address the other agent's strongest point, distinguish facts from assumptions, and keep replies concise enough for Discord.
   memoryTopK: 8
+  memorySearchThreshold: 0.35
   resetMemoryOnStart: true
   selfDebate: false
   # The opening message counts toward this limit.

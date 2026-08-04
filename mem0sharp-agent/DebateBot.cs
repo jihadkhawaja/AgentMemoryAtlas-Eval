@@ -312,8 +312,12 @@ internal sealed class DebateBot : IDisposable
         topK = Math.Clamp(topK, 1, 20);
         var results = await memory.SearchAsync(
             query,
-            new MemoryFilter(UserId: MemoryUserId, AgentId: agentId, RunId: MemoryRunId, Scope: MemoryScope),
-            topK);
+            new MemorySearchOptions
+            {
+                Filter = new MemoryFilter(UserId: MemoryUserId, AgentId: agentId, RunId: MemoryRunId, Scope: MemoryScope),
+                TopK = topK,
+                Threshold = configuration.Agent.MemorySearchThreshold
+            });
         searchUsages.Add(new MemorySearchUsage(query, results));
         foreach (var result in results)
         {

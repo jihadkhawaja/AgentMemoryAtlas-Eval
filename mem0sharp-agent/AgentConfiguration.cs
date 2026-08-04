@@ -45,6 +45,8 @@ internal sealed class AgentConfiguration
             !new[] { "low", "medium", "high" }.Contains(OpenAi.ReasoningEffort, StringComparer.OrdinalIgnoreCase))
             throw new InvalidDataException("openAi.reasoningEffort must be low, medium, high, or null.");
         if (string.IsNullOrWhiteSpace(Agent.Name)) throw new InvalidDataException("agent.name must be configured.");
+        if (Agent.MemorySearchThreshold is < 0 or > 1)
+            throw new InvalidDataException("agent.memorySearchThreshold must be between 0 and 1.");
         if (Agent.MaxMessages < 1) throw new InvalidDataException("agent.maxMessages must be positive.");
     }
 
@@ -90,6 +92,7 @@ internal sealed class AgentSettings
     public string Name { get; init; } = "mem0sharp-agent";
     public string SystemPrompt { get; init; } = "You are a rigorous, curious debate partner. Address the other agent's strongest point, distinguish facts from assumptions, and keep replies concise enough for Discord.";
     public int MemoryTopK { get; init; } = 8;
+    public double MemorySearchThreshold { get; init; } = 0.35;
     public bool ResetMemoryOnStart { get; init; } = true;
     public bool SelfDebate { get; init; }
     public int MaxMessages { get; init; } = 10;
