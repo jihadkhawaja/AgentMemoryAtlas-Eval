@@ -71,6 +71,20 @@ internal sealed class DebateBot : IDisposable
             if (string.IsNullOrWhiteSpace(topic))
                 throw new InvalidOperationException("The channel's first message must contain the debate topic.");
 
+            var recentMessages = await GetRecentMessagesAsync(channel);
+            if (!configuration.Agent.ResetMemoryOnStart && recentMessages.Length > 1)
+            {
+                var latestDebateMessage = configuration.Agent.SelfDebate
+                    ? recentMessages.LastOrDefault(message => IsSelfDebateMessage(message.Content))
+                    : recentMessages[^1];
+                if (latestDebateMessage is not null)
+                {
+                    await ContinueExistingDebateAsync(channel, latestDebateMessage);
+                    Console.WriteLine($"Resumed the debate from message {latestDebateMessage.Id}.");
+                }
+                return;
+            }
+
             var generatedOpening = await GenerateReplyAsync(
                 topic,
                 "No opposing argument has been posted yet.",
@@ -79,7 +93,7 @@ internal sealed class DebateBot : IDisposable
             var opening = generatedOpening.Text;
             var labeledOpening = $"{SelfDebateLabel(SelfDebateAgent1)} {opening}";
             var openingMessage = configuration.Agent.SelfDebate ? labeledOpening : opening;
-            await channel.SendMessageAsync(FormatDiscordMessage(openingMessage, generatedOpening));
+            await SendDiscordReplyAsync(channel, openingMessage, generatedOpening);
             Console.WriteLine($"Loaded topic from message {firstMessage.Id}.");
 
             if (configuration.Agent.SelfDebate)
@@ -125,7 +139,7 @@ internal sealed class DebateBot : IDisposable
                 $"{message.Author.Username}: {message.Content.Trim()}",
                 "Respond to the other agent's latest argument. Challenge weak assumptions, concede valid points, and advance the discussion. Use memory tools when relevant: search before changing existing memories, add durable new memories, update stale memories, and delete memories that are clearly invalid or no longer useful.");
             var reply = generatedReply.Text;
-            await message.Channel.SendMessageAsync(FormatDiscordMessage(reply, generatedReply));
+            await SendDiscordReplyAsync(message.Channel, reply, generatedReply);
         }
         catch (Exception exception)
         {
@@ -137,29 +151,54 @@ internal sealed class DebateBot : IDisposable
         }
     }
 
-    private async Task RunSelfDebateAsync(IMessageChannel channel, string opening)
+    private async Task ContinueExistingDebateAsync(IMessageChannel channel, IMessage latestMessage)
+    {
+        var previousArgument = ExtractDebateArgument(latestMessage.Content);
+        if (configuration.Agent.SelfDebate)
+        {
+            await RunSelfDebateAsync(channel, previousArgument, messageCount: 0, includeTopic: false);
+            return;
+        }
+
+        var participant = configuration.Agent.Name;
+        var generatedReply = await GenerateReplyAsync(
+            topic!,
+            $"{latestMessage.Author.Username}: {previousArgument}",
+            "Continue the existing debate from the latest argument. Do not reopen the debate or restate an opening position. Build on the established context and use memory tools when relevant: search before changing existing memories, add durable new memories, update stale memories, and delete memories that are clearly invalid or no longer useful.",
+            participant,
+            includeTopic: false);
+        var reply = configuration.Agent.SelfDebate
+            ? $"{SelfDebateLabel(participant)} {generatedReply.Text}"
+            : generatedReply.Text;
+        await SendDiscordReplyAsync(channel, reply, generatedReply);
+    }
+
+    private async Task RunSelfDebateAsync(
+        IMessageChannel channel,
+        string previousArgument,
+        int messageCount = 1,
+        bool includeTopic = true)
     {
         await debateLock.WaitAsync();
         try
         {
-            var messageCount = 1;
-            var previousArgument = opening;
+            var participant = NextSelfDebateParticipant(previousArgument);
             while (messageCount < configuration.Agent.MaxMessages)
             {
                 var turnNumber = messageCount + 1;
-                var participant = turnNumber % 2 == 0 ? SelfDebateAgent2 : SelfDebateAgent1;
                 var role = participant == SelfDebateAgent2 ? "challenger" : "advocate";
                 var generatedReply = await GenerateReplyAsync(
                     topic!,
                     $"Previous turn ({messageCount}): {previousArgument}",
                     $"This is self-debate turn {turnNumber}. You are {participant}, the {role}. Respond to the previous turn, make one clear argument, and end with a point the next turn can address. Use memory tools when relevant: search before changing existing memories, add durable new memories, update stale memories, and delete memories that are clearly invalid or no longer useful.",
                     participant,
-                    includeTopic: turnNumber <= 2);
+                    includeTopic: includeTopic && turnNumber <= 2);
                 var reply = generatedReply.Text;
                 var labeledReply = $"{SelfDebateLabel(participant)} {reply}";
-                await channel.SendMessageAsync(FormatDiscordMessage(labeledReply, generatedReply));
+                await SendDiscordReplyAsync(channel, labeledReply, generatedReply);
 
                 previousArgument = labeledReply;
+                participant = participant == SelfDebateAgent1 ? SelfDebateAgent2 : SelfDebateAgent1;
                 messageCount++;
             }
 
@@ -175,7 +214,10 @@ internal sealed class DebateBot : IDisposable
     {
         agentId ??= configuration.Agent.Name;
         var topicContext = includeTopic ? $"Topic: {debateTopic}\n\n" : string.Empty;
-        var systemContext = $"{configuration.Agent.SystemPrompt} Your identity for this turn is {agentId}. You have memory tools scoped to this Discord channel, agent, and session. Use them deliberately before producing your final response.";
+        var memoryScopeDescription = configuration.Agent.ResetMemoryOnStart
+            ? "this Discord channel, agent, and session"
+            : "this agent across debate channels and sessions";
+        var systemContext = $"{configuration.Agent.SystemPrompt} Your identity for this turn is {agentId}. You have memory tools scoped to {memoryScopeDescription}. Use them deliberately before producing your final response.";
         var userContext = $"{topicContext}Latest argument: {latestArgument}\n\nTask: {instruction}";
         var initialContext = $"[system]\n{systemContext}\n\n[user]\n{userContext}";
         var input = new List<OpenAiResponseInput>
@@ -270,7 +312,7 @@ internal sealed class DebateBot : IDisposable
         topK = Math.Clamp(topK, 1, 20);
         var results = await memory.SearchAsync(
             query,
-            new MemoryFilter(UserId: MemoryUserId, AgentId: agentId, RunId: RunId, Scope: MemoryScope.Session),
+            new MemoryFilter(UserId: MemoryUserId, AgentId: agentId, RunId: MemoryRunId, Scope: MemoryScope),
             topK);
         searchUsages.Add(new MemorySearchUsage(query, results));
         foreach (var result in results)
@@ -298,8 +340,8 @@ internal sealed class DebateBot : IDisposable
         {
             UserId = MemoryUserId,
             AgentId = agentId,
-            RunId = RunId,
-            Scope = MemoryScope.Session,
+            RunId = MemoryRunId,
+            Scope = MemoryScope,
             Infer = false,
             Deduplicate = true,
             Metadata = new Dictionary<string, string> { ["source"] = "discord-memory-tool" }
@@ -351,8 +393,8 @@ internal sealed class DebateBot : IDisposable
         return existing is not null &&
             existing.UserId == MemoryUserId &&
             existing.AgentId == agentId &&
-            existing.RunId == RunId &&
-            existing.Scope == MemoryScope.Session
+            existing.RunId == MemoryRunId &&
+            existing.Scope == MemoryScope
             ? existing
             : null;
     }
@@ -376,7 +418,7 @@ internal sealed class DebateBot : IDisposable
         memoryActions.AddRange(result.Memories.Select(memory => new MemoryActionResult(memory.Id, memory.Text, MemoryAction.Add)));
     }
 
-    private static string FormatMemoryMetadata(GeneratedReply reply)
+    private string FormatMemoryMetadata(GeneratedReply reply)
     {
         var searched = reply.SearchUsages.Count == 0
             ? "none"
@@ -387,7 +429,11 @@ internal sealed class DebateBot : IDisposable
         var updatedActions = reply.MemoryActions.Where(action => action.Event == MemoryAction.Update).ToArray();
         var deletedActions = reply.MemoryActions.Where(action => action.Event == MemoryAction.Delete).ToArray();
 
-        return $"\n\n```text\n---\n[system] Mem0Sharp memory metadata\nContext:\n{FormatContext(reply.Context)}\nSearched ({searchedCount}): {searched}\nAdded ({addedActions.Length}): {FormatMemoryActions(addedActions)}\nUpdated ({updatedActions.Length}): {FormatMemoryActions(updatedActions)}\nDeleted ({deletedActions.Length}): {FormatMemoryActions(deletedActions)}\n```";
+        var metadata = $"```text\n---\n[system] Mem0Sharp memory metadata\nProvider: OpenAI\nModel: {configuration.OpenAi.ChatModel}\nThinking effort: {configuration.OpenAi.ReasoningEffort ?? "none"}\nContext:\n{FormatContext(reply.Context)}\nSearched ({searchedCount}): {searched}\nAdded ({addedActions.Length}): {FormatMemoryActions(addedActions)}\nUpdated ({updatedActions.Length}): {FormatMemoryActions(updatedActions)}\nDeleted ({deletedActions.Length}): {FormatMemoryActions(deletedActions)}\n```";
+        const int discordMessageLimit = 2000;
+        return metadata.Length <= discordMessageLimit
+            ? metadata
+            : metadata[..(discordMessageLimit - "...\n```".Length)] + "...\n```";
     }
 
     private static string FormatSearchResults(IReadOnlyList<SearchResult> results) => results.Count == 0
@@ -421,17 +467,42 @@ internal sealed class DebateBot : IDisposable
             : sanitized[..(maxContextLength - 3)] + "...";
     }
 
-    private static string FormatDiscordMessage(string content, GeneratedReply reply)
+    private static string ExtractDebateArgument(string content)
     {
-        var metadata = FormatMemoryMetadata(reply);
+        const string metadataMarker = "\n\n```text\n---\n[system]";
+        var metadataStart = content.IndexOf(metadataMarker, StringComparison.Ordinal);
+        return (metadataStart < 0 ? content : content[..metadataStart]).Trim();
+    }
+
+    private static string FormatDiscordContent(string content)
+    {
         const int discordMessageLimit = 2000;
-        var contentLimit = discordMessageLimit - metadata.Length;
-        if (content.Length > contentLimit)
+        if (content.Length > discordMessageLimit)
         {
-            content = content[..Math.Max(0, contentLimit - 3)] + "...";
+            content = content[..(discordMessageLimit - 3)] + "...";
         }
 
-        return content + metadata;
+        content = CloseUnterminatedCodeBlock(content);
+        return content;
+    }
+
+    private async Task SendDiscordReplyAsync(IMessageChannel channel, string content, GeneratedReply reply)
+    {
+        await channel.SendMessageAsync(FormatDiscordContent(content));
+        await channel.SendMessageAsync(FormatMemoryMetadata(reply));
+    }
+
+    private static string CloseUnterminatedCodeBlock(string content)
+    {
+        var fenceCount = 0;
+        var searchStart = 0;
+        while (content.IndexOf("```", searchStart, StringComparison.Ordinal) is var fenceIndex && fenceIndex >= 0)
+        {
+            fenceCount++;
+            searchStart = fenceIndex + 3;
+        }
+
+        return fenceCount % 2 == 0 ? content : content + "\n```";
     }
 
     private async Task<IMessageChannel> GetTargetChannelAsync()
@@ -459,6 +530,11 @@ internal sealed class DebateBot : IDisposable
         return null;
     }
 
+    private static async Task<IMessage[]> GetRecentMessagesAsync(IMessageChannel channel) =>
+        (await channel.GetMessagesAsync(2).FlattenAsync())
+            .OrderBy(message => message.Timestamp)
+            .ToArray();
+
     private Task LogAsync(LogMessage message)
     {
         var output = $"Discord {message.Severity}: {message.Source}: {message.Message}";
@@ -474,6 +550,19 @@ internal sealed class DebateBot : IDisposable
         : string.Join(", ", client.Guilds.Select(guild => $"{guild.Name} ({guild.Id})"));
 
     private static string SelfDebateLabel(string participant) => $"**[{participant}]**";
+
+    private static bool IsSelfDebateMessage(string content) =>
+        content.StartsWith(SelfDebateLabel(SelfDebateAgent1), StringComparison.Ordinal) ||
+        content.StartsWith(SelfDebateLabel(SelfDebateAgent2), StringComparison.Ordinal);
+
+    private static string NextSelfDebateParticipant(string latestArgument)
+    {
+        if (latestArgument.StartsWith(SelfDebateLabel(SelfDebateAgent1), StringComparison.Ordinal))
+            return SelfDebateAgent2;
+        if (latestArgument.StartsWith(SelfDebateLabel(SelfDebateAgent2), StringComparison.Ordinal))
+            return SelfDebateAgent1;
+        return SelfDebateAgent1;
+    }
 
     private const int MaxToolRounds = 8;
     private sealed record GeneratedReply(
@@ -539,8 +628,15 @@ internal sealed class DebateBot : IDisposable
             })
     ];
 
-    private string MemoryUserId => $"discord-channel-{configuration.Discord.ChannelId}";
-    private string RunId => $"{configuration.Agent.Name}-{configuration.Discord.ChannelId}";
+    private string MemoryUserId => configuration.Agent.ResetMemoryOnStart
+        ? $"discord-channel-{configuration.Discord.ChannelId}"
+        : $"discord-agent-{configuration.Agent.Name}";
+    private string? MemoryRunId => configuration.Agent.ResetMemoryOnStart
+        ? $"{configuration.Agent.Name}-{configuration.Discord.ChannelId}"
+        : null;
+    private MemoryScope MemoryScope => configuration.Agent.ResetMemoryOnStart
+        ? MemoryScope.Session
+        : MemoryScope.User;
 
     public void Dispose()
     {

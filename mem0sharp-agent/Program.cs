@@ -27,7 +27,15 @@ await store.InitializeAsync();
 var memory = new MemoryService(
 	store: store,
 	embeddings: openAi);
-await memory.ResetAsync();
+if (configuration.Agent.ResetMemoryOnStart)
+{
+	await memory.ResetAsync();
+	Console.WriteLine("Reset Mem0Sharp memories and histories at startup.");
+}
+else
+{
+	Console.WriteLine("Preserving Mem0Sharp memories and histories at startup.");
+}
 
 var toolChat = new OpenAiToolClient(
 	httpClient,

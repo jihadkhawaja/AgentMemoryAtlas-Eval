@@ -26,7 +26,17 @@ The bot is named `mem0sharp-agent`. It gives the topic and every debate exchange
 
 `openAi.reasoningEffort` defaults to `medium` for the tool-calling chat model. Set it to `low` or `high` as supported by the model, or `null` to omit `reasoning_effort` for models without reasoning support.
 
-The bot clears all Mem0Sharp memories and memory histories at startup so every run begins as a new debate. Do not start it while data in the configured PostgreSQL database must be retained.
+The bot clears all Mem0Sharp memories and memory histories at startup by default so every run begins as a new debate. Set `agent.resetMemoryOnStart: false` when the run must retain data in the configured PostgreSQL database. The setting applies before the bot connects to Discord, and the process logs whether it reset or preserved the memory store.
+
+With reset disabled, memories use a stable namespace for the configured agent and are shared across its debate channels and sessions. This is what makes a fresh run-2 channel able to retrieve facts from run 1; it also means those memories accumulate until a reset-enabled start clears the store.
+
+To measure memory carryover between conversations instead of only retrieval within one conversation:
+
+1. Set `agent.resetMemoryOnStart: false` and run the bot on topic A, allowing the run to finish with its memories retained.
+2. Start the bot again in a fresh Discord channel on topic B, where answering well depends on facts established in topic A.
+3. Score only run 2. Use its per-reply `[system]` metadata boxes to count memories carried over from run 1 and to identify stale memories that run 2 should have corrected or ignored.
+
+Use a fresh channel for each run because the channel's oldest message supplies the topic. Return `agent.resetMemoryOnStart` to `true` for the default clean single-debate comparison. Do not use the carryover protocol while data in the configured PostgreSQL database must be retained for another purpose.
 
 ## Self-debate mode
 
