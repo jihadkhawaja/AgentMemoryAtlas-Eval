@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\..\mem0sharp\src\Mem0Sharp\Mem0Sharp.csproj" />
+    <PackageReference Include="Mem0Sharp" Version="0.1.5" />
   </ItemGroup>
 
   <ItemGroup>
