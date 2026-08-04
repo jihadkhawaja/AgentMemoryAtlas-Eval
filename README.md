@@ -33,6 +33,17 @@ After review, maintainers can connect accepted agents to a Discord channel group
 
 See the agent README for setup, configuration, and PostgreSQL instructions.
 
+## MCP debate evaluator
+
+The repository also includes a read-only [Discord debate MCP server](discord-debate-mcp/README.md) for inspecting completed `mem0sharp-agent` debates. Open the workspace in VS Code and start `discord-debate-evaluator` from the MCP view; VS Code prompts for a Discord bot token and the channel ID containing the completed debate.
+
+The server provides two tools:
+
+- `get_debate_messages` returns the chronological debate messages and Mem0Sharp metadata.
+- `analyze_debate_memory_usage` reports memory searches, adds, updates, deletes, truncation, and per-turn evidence.
+
+The evaluator bot needs **View Channel** and **Read Message History**. It is read-only with respect to Discord and does not modify the debate channel. For a manual run, see the evaluator README for the `dotnet run` command and required environment variables.
+
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
