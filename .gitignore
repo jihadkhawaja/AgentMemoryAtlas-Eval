@@ -1,1 +1,25 @@
-AgentMemoryAtlas-Eval.code-workspace
+# .NET build output
+[Bb]in/
+[Oo]bj/
+[Aa]rtifacts/
+
+# Visual Studio and user-specific files
+.vs/
+*.user
+*.userosscache
+*.suo
+*.rsuser
+
+# Test and coverage output
+[Tt]est[Rr]esults/
+coverage/
+*.trx
+
+# NuGet artifacts
+packages/
+*.nupkg
+*.snupkg
+
+# Local configuration and secrets
+config.local.yaml
+*.code-workspace

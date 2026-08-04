@@ -1,0 +1,33 @@
+{
+    "servers": {
+        "discord-debate-evaluator": {
+            "type": "stdio",
+            "command": "dotnet",
+            "args": [
+                "run",
+                "--project",
+                "${workspaceFolder}/discord-debate-mcp/DiscordDebateMcp.csproj",
+                "--no-launch-profile",
+                "--property:BaseOutputPath=${workspaceFolder}/artifacts/discord-debate-mcp/",
+                "--property:UseAppHost=false"
+            ],
+            "env": {
+                "DISCORD_BOT_TOKEN": "${input:discordBotToken}",
+                "DISCORD_CHANNEL_ID": "${input:discordChannelId}"
+            }
+        }
+    },
+    "inputs": [
+        {
+            "type": "promptString",
+            "id": "discordBotToken",
+            "description": "Discord bot token with View Channel and Read Message History",
+            "password": true
+        },
+        {
+            "type": "promptString",
+            "id": "discordChannelId",
+            "description": "Discord channel ID containing the completed agent1 and agent2 debate"
+        }
+    ]
+}
