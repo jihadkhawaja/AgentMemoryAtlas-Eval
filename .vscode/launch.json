@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug mem0sharp-agent",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build mem0sharp-agent",
+            "program": "${workspaceFolder}/mem0sharp-agent/bin/Debug/net10.0/mem0sharp-agent.dll",
+            "cwd": "${workspaceFolder}/mem0sharp-agent",
+            "console": "integratedTerminal",
+            "stopAtEntry": false,
+            "justMyCode": true
+        }
+    ]
+}

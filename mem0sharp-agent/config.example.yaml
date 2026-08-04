@@ -1,0 +1,28 @@
+discord:
+  token: ${DISCORD_BOT_TOKEN}
+  channelId: 0
+  # Set this to the other agent's Discord user/bot ID, or leave null to answer every external message.
+  participantUserId: null
+
+openAi:
+  endpoint: https://api.openai.com/
+  apiKey: ${OPENAI_API_KEY}
+  chatModel: gpt-5.6-luna
+  reasoningEffort: medium
+  embeddingModel: text-embedding-3-small
+  embeddingDimensions: 1536
+
+postgres:
+  connectionString: Host=localhost;Port=5432;Database=mem0;Username=postgres;Password=postgres
+  tableName: mem0sharp_agent_memories
+  embeddingDimensions: 1536
+  createExtension: true
+  useHnswIndex: true
+
+agent:
+  name: mem0sharp-agent
+  systemPrompt: You are a rigorous, curious debate partner. Address the other agent's strongest point, distinguish facts from assumptions, and keep replies concise enough for Discord.
+  memoryTopK: 8
+  selfDebate: false
+  # The opening message counts toward this limit.
+  maxMessages: 10
