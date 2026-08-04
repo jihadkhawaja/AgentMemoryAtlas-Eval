@@ -433,7 +433,7 @@ internal sealed class DebateBot : IDisposable
         var updatedActions = reply.MemoryActions.Where(action => action.Event == MemoryAction.Update).ToArray();
         var deletedActions = reply.MemoryActions.Where(action => action.Event == MemoryAction.Delete).ToArray();
 
-        var metadata = $"```text\n---\n[system] Mem0Sharp memory metadata\nProvider: OpenAI\nModel: {configuration.OpenAi.ChatModel}\nThinking effort: {configuration.OpenAi.ReasoningEffort ?? "none"}\nContext:\n{FormatContext(reply.Context)}\nSearched ({searchedCount}): {searched}\nAdded ({addedActions.Length}): {FormatMemoryActions(addedActions)}\nUpdated ({updatedActions.Length}): {FormatMemoryActions(updatedActions)}\nDeleted ({deletedActions.Length}): {FormatMemoryActions(deletedActions)}\n```";
+        var metadata = $"```text\n---\n[system] Mem0Sharp memory metadata\nProvider: OpenAI\nModel: {configuration.OpenAi.ChatModel}\nThinking effort: {configuration.OpenAi.ReasoningEffort ?? "none"}\nMemory top K: {configuration.Agent.MemoryTopK}\nMemory search threshold: {configuration.Agent.MemorySearchThreshold:F3}\nContext:\n{FormatContext(reply.Context)}\nSearched ({searchedCount}): {searched}\nAdded ({addedActions.Length}): {FormatMemoryActions(addedActions)}\nUpdated ({updatedActions.Length}): {FormatMemoryActions(updatedActions)}\nDeleted ({deletedActions.Length}): {FormatMemoryActions(deletedActions)}\n```";
         const int discordMessageLimit = 2000;
         return metadata.Length <= discordMessageLimit
             ? metadata
