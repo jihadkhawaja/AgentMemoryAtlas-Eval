@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <PackageReference Include="Mem0Sharp" Version="0.1.5" />
+    <PackageReference Include="Mem0Sharp.PostgreSQL" Version="0.1.6" />
   </ItemGroup>
 
   <ItemGroup>
