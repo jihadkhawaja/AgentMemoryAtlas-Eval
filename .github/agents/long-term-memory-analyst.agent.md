@@ -1,12 +1,7 @@
 ---
 name: Long-Term Memory Analyst
 description: "Use when comparing two completed debate agents, evaluating long-term memory systems, or deciding which agent has stronger memory from replies, retrieval and mutation metadata, and persisted-memory evidence."
-tools:
-  - "discord-debate-evaluator/get_debate_messages"
-  - "discord-debate-evaluator/analyze_debate_memory_usage"
-  - "discord-debate-evaluator/list_memory_repositories"
-  - "discord-debate-evaluator/search_debate_memories"
-  - "discord-debate-evaluator/get_debate_context"
+tools: [vscode, read, edit, search, web, 'discord-debate-evaluator/*', todo]
 argument-hint: "Analyze a completed debate between agent1 and agent2. Include the debate ID and participant IDs when they cannot be inferred."
 user-invocable: true
 agents: []
