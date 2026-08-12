@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 using ModelContextProtocol.Server;
 
 [McpServerToolType]
-internal sealed class DiscordDebateTools(DiscordDebateService discord)
+internal sealed class DiscordDebateTools(DiscordDebateService discord, MemoryRepositoryMiddleware memory)
 {
     [McpServerTool(Name = "get_debate_messages", ReadOnly = true)]
     [Description("Read the chronological Discord messages for a debate channel, including the agent replies and Mem0Sharp metadata boxes.")]
@@ -14,6 +14,113 @@ internal sealed class DiscordDebateTools(DiscordDebateService discord)
     {
         limit = Math.Clamp(limit, 1, 5000);
         return await discord.GetMessagesAsync(channel_id, limit, cancellationToken);
+    }
+
+    [McpServerTool(Name = "list_memory_repositories", ReadOnly = true)]
+    [Description("Discover the configured long-term memory repositories and the MCP tools each repository exposes.")]
+    public Task<IReadOnlyList<MemoryRepositoryStatus>> ListMemoryRepositoriesAsync(
+        CancellationToken cancellationToken = default) =>
+        memory.GetRepositoryStatusesAsync(cancellationToken);
+
+    [McpServerTool(Name = "search_debate_memories", ReadOnly = true)]
+    [Description("Search one or more long-term memory repositories using an explicit debate and participant scope. Results retain their repository identity so different memory systems can be compared or combined across turns.")]
+    public Task<DebateMemorySearchReport> SearchDebateMemoriesAsync(
+        [Description("Stable identifier for the debate. It becomes the default memory project or run scope.")] string debate_id,
+        [Description("The memory query for this turn.")] string query,
+        [Description("Optional debating identity. Mem0Sharp uses it as agent_id; memsem keeps it in the debate memory record.")] string? participant_id = null,
+        [Description("Optional explicit project scope. Defaults to debate:<debate_id>.")] string? project = null,
+        [Description("Allow a memsem repository to cross the explicit project boundary.")] bool cross_project = false,
+        [Description("Maximum results per repository, from 1 to 100.")] int top_k = 10,
+        [Description("Optional repository IDs. Omit to query every configured repository.")] string[]? repository_ids = null,
+        CancellationToken cancellationToken = default) =>
+        memory.SearchAsync(
+            debate_id,
+            query,
+            participant_id,
+            project,
+            cross_project,
+            top_k,
+            repository_ids,
+            cancellationToken);
+
+    [McpServerTool(Name = "add_debate_memory", ReadOnly = false)]
+    [Description("Write one durable debate memory to one or more configured repositories. The middleware translates the request to the selected repository's native MCP tool and preserves debate, participant, and turn scope.")]
+    public Task<DebateMemoryWriteReport> AddDebateMemoryAsync(
+        [Description("Stable identifier for the debate.")] string debate_id,
+        [Description("Text to remember. For memsem, optional subject/predicate/object fields provide a structured fact; otherwise the text is stored as a debate argument.")] string text,
+        [Description("Optional debating identity.")] string? participant_id = null,
+        [Description("Optional turn identifier used as provenance or run_id.")] string? turn_id = null,
+        [Description("Optional explicit project scope. Defaults to debate:<debate_id>.")] string? project = null,
+        [Description("Optional memsem subject.")] string? subject = null,
+        [Description("Optional memsem predicate.")] string? predicate = null,
+        [Description("Optional memsem object.")] string? @object = null,
+        [Description("Optional hierarchical theme for memsem.")] string? theme = null,
+        [Description("Importance from 0 to 1 for repositories that support it.")] double importance = 0.5,
+        [Description("Optional repository IDs. Omit to write to every configured repository.")] string[]? repository_ids = null,
+        CancellationToken cancellationToken = default) =>
+        memory.AddAsync(
+            debate_id,
+            participant_id,
+            text,
+            turn_id,
+            project,
+            subject,
+            predicate,
+            @object,
+            theme,
+            importance,
+            repository_ids,
+            cancellationToken);
+
+    [McpServerTool(Name = "record_debate_turn", ReadOnly = false)]
+    [Description("Record one completed debate turn as an episode when the repository supports episodic memory, with an optional semantic-memory fallback. Use the same debate_id and participant_id on every turn.")]
+    public Task<DebateTurnRecordReport> RecordDebateTurnAsync(
+        [Description("Stable identifier for the debate.")] string debate_id,
+        [Description("Debating identity that produced the turn.")] string participant_id,
+        [Description("Monotonic or otherwise unique turn identifier.")] string turn_id,
+        [Description("The completed argument or response.")] string argument,
+        [Description("Optional debate topic used in an episodic summary.")] string? topic = null,
+        [Description("Optional explicit project scope. Defaults to debate:<debate_id>.")] string? project = null,
+        [Description("When true, repositories without an episode tool also receive the argument as a semantic memory.")] bool store_as_memory = false,
+        [Description("Optional repository IDs. Omit to record in every configured repository.")] string[]? repository_ids = null,
+        CancellationToken cancellationToken = default) =>
+        memory.RecordTurnAsync(
+            debate_id,
+            participant_id,
+            turn_id,
+            argument,
+            topic,
+            project,
+            store_as_memory,
+            repository_ids,
+            cancellationToken);
+
+    [McpServerTool(Name = "get_debate_context", ReadOnly = true)]
+    [Description("Assemble a multi-turn context from Discord messages and scoped memories returned by one or more long-term memory repositories.")]
+    public async Task<DebateContextReport> GetDebateContextAsync(
+        [Description("Stable identifier for the debate and memory scope.")] string debate_id,
+        [Description("Query used to retrieve relevant memories for the current turn.")] string query,
+        [Description("Optional Discord channel ID. Uses the configured channel when omitted.")] ulong? channel_id = null,
+        [Description("Optional debating identity.")] string? participant_id = null,
+        [Description("Optional explicit project scope. Defaults to debate:<debate_id>.")] string? project = null,
+        [Description("Allow a memsem repository to cross the explicit project boundary.")] bool cross_project = false,
+        [Description("Maximum Discord messages to include, from 1 to 5000.")] int message_limit = 50,
+        [Description("Maximum memory results per repository, from 1 to 100.")] int top_k = 10,
+        [Description("Optional repository IDs. Omit to query every configured repository.")] string[]? repository_ids = null,
+        CancellationToken cancellationToken = default)
+    {
+        message_limit = Math.Clamp(message_limit, 1, 5000);
+        var messages = await discord.GetMessagesAsync(channel_id, message_limit, cancellationToken);
+        var memories = await memory.SearchAsync(
+            debate_id,
+            query,
+            participant_id,
+            project,
+            cross_project,
+            top_k,
+            repository_ids,
+            cancellationToken);
+        return new DebateContextReport(debate_id, messages, memories);
     }
 
     [McpServerTool(Name = "analyze_debate_memory_usage", ReadOnly = true)]
@@ -190,6 +297,11 @@ internal sealed record DebateMemoryUsageReport(
     int TotalMutationCount,
     IReadOnlyList<AgentMemoryUsageSummary> Agents,
     IReadOnlyList<DebateTurnMemoryUsage> Turns);
+
+internal sealed record DebateContextReport(
+    string DebateId,
+    IReadOnlyList<DiscordMessageSnapshot> Messages,
+    DebateMemorySearchReport Memories);
 
 internal sealed record AgentMemoryUsageSummary(
     string Label,

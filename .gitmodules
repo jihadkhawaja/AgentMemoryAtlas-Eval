@@ -1,0 +1,6 @@
+[submodule "memsem"]
+	path = memsem
+	url = https://github.com/WindSeries69/memsem.git
+[submodule "mem0sharp"]
+	path = mem0sharp
+	url = https://github.com/jihadkhawaja/mem0sharp.git

@@ -1,0 +1,26 @@
+discord:
+  token: ${DISCORD_BOT_TOKEN}
+  channelId: 0
+  participantUserId: null
+
+openAi:
+  endpoint: https://api.openai.com/
+  apiKey: ${OPENAI_API_KEY}
+  chatModel: gpt-5.6-luna
+  reasoningEffort: medium
+
+memsem:
+  command: node.exe
+  arguments: ["..\\..\\..\\..\\memsem\\dist\\index.js"]
+  databasePath: ./memsem-memory.db
+  project: memsem-agent
+  relaxSearch: false
+
+agent:
+  name: memsem-agent
+  replyPrefix: "**[memsem-agent]**"
+  peerPrefix: "**[mem0sharp-agent]**"
+  memoryTopK: 8
+  resetMemoryOnStart: true
+  selfDebate: false
+  maxMessages: 10

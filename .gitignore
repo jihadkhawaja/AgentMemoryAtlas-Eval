@@ -22,4 +22,5 @@ packages/
 
 # Local configuration and secrets
 config.local.yaml
+discord-debate-mcp/memory-repositories.local.json
 *.code-workspace

@@ -45,6 +45,8 @@ internal sealed class AgentConfiguration
             !new[] { "low", "medium", "high" }.Contains(OpenAi.ReasoningEffort, StringComparer.OrdinalIgnoreCase))
             throw new InvalidDataException("openAi.reasoningEffort must be low, medium, high, or null.");
         if (string.IsNullOrWhiteSpace(Agent.Name)) throw new InvalidDataException("agent.name must be configured.");
+        Require(Agent.ReplyPrefix, "agent.replyPrefix");
+        Require(Agent.PeerPrefix, "agent.peerPrefix");
         if (Agent.MemorySearchThreshold is < 0 or > 1)
             throw new InvalidDataException("agent.memorySearchThreshold must be between 0 and 1.");
         if (Agent.MaxMessages < 1) throw new InvalidDataException("agent.maxMessages must be positive.");
@@ -72,7 +74,7 @@ internal sealed class OpenAiSettings
 {
     public string Endpoint { get; init; } = "https://api.openai.com/";
     public string ApiKey { get; init; } = string.Empty;
-    public string ChatModel { get; init; } = "gpt-4o-mini";
+    public string ChatModel { get; init; } = "gpt-5.6-luna";
     public string? ReasoningEffort { get; init; } = "medium";
     public string EmbeddingModel { get; init; } = "text-embedding-3-small";
     public int EmbeddingDimensions { get; init; } = 1536;
@@ -90,6 +92,8 @@ internal sealed class PostgresSettings
 internal sealed class AgentSettings
 {
     public string Name { get; init; } = "mem0sharp-agent";
+    public string ReplyPrefix { get; init; } = "**[mem0sharp-agent]**";
+    public string PeerPrefix { get; init; } = "**[memsem-agent]**";
     public string SystemPrompt { get; init; } = "You are a rigorous, curious debate partner. Address the other agent's strongest point, distinguish facts from assumptions, and keep replies concise enough for Discord.";
     public int MemoryTopK { get; init; } = 8;
     public double MemorySearchThreshold { get; init; } = 0.35;

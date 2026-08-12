@@ -119,9 +119,12 @@ internal sealed class DebateBot : IDisposable
             return;
 
         if (message.Channel.Id != configuration.Discord.ChannelId ||
-            message.Author.Id == client.CurrentUser?.Id ||
             message.Id == topicMessageId ||
             string.IsNullOrWhiteSpace(message.Content))
+            return;
+
+        var isCurrentBotMessage = message.Author.Id == client.CurrentUser?.Id;
+        if (isCurrentBotMessage && !HasPrefix(message.Content, configuration.Agent.PeerPrefix))
             return;
 
         if (configuration.Discord.ParticipantUserId.HasValue &&
@@ -492,9 +495,17 @@ internal sealed class DebateBot : IDisposable
 
     private async Task SendDiscordReplyAsync(IMessageChannel channel, string content, GeneratedReply reply)
     {
-        await channel.SendMessageAsync(FormatDiscordContent(content));
+        await channel.SendMessageAsync(FormatDiscordContent(PrefixReply(content)));
         await channel.SendMessageAsync(FormatMemoryMetadata(reply));
     }
+
+    private string PrefixReply(string content) =>
+        configuration.Agent.SelfDebate || HasPrefix(content, configuration.Agent.ReplyPrefix)
+            ? content
+            : $"{configuration.Agent.ReplyPrefix} {content}";
+
+    private static bool HasPrefix(string content, string prefix) =>
+        content.TrimStart().StartsWith(prefix, StringComparison.Ordinal);
 
     private static string CloseUnterminatedCodeBlock(string content)
     {

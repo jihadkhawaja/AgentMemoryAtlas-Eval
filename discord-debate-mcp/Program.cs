@@ -17,6 +17,8 @@ else if (!string.IsNullOrWhiteSpace(channelText))
 var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.ClearProviders();
 builder.Services.AddSingleton(new DiscordDebateService(token, defaultChannelId));
+builder.Services.AddSingleton(MemoryRepositoryConfiguration.Load());
+builder.Services.AddSingleton<MemoryRepositoryMiddleware>();
 builder.Services
     .AddMcpServer()
     .WithStdioServerTransport()

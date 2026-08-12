@@ -13,7 +13,8 @@
             ],
             "env": {
                 "DISCORD_BOT_TOKEN": "${input:discordBotToken}",
-                "DISCORD_CHANNEL_ID": "${input:discordChannelId}"
+                "DISCORD_CHANNEL_ID": "${input:discordChannelId}",
+                "DEBATE_MEMORY_REPOSITORIES_FILE": "${workspaceFolder}/discord-debate-mcp/memory-repositories.example.json"
             }
         }
     },

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "memsem-local",
+    "kind": "memsem",
+    "command": "node",
+    "args": [
+      "dist/index.js"
+    ],
+    "workingDirectory": "memsem"
+  },
+  {
+    "id": "mem0sharp-local",
+    "kind": "mem0sharp",
+    "command": "dotnet",
+    "args": [
+      "run",
+      "--project",
+      "..\\mem0sharp\\samples\\McpServer\\McpServer.csproj",
+      "--no-launch-profile"
+    ]
+  }
+]
